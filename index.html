@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard CRM de Candidatos</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background-color: #f4f6f9; }
+.card-counter { border-radius: 0.5rem; padding: 20px; color: #fff; text-align: center; height: 100%; }
+.card-counter h5 { margin-bottom: 0.5rem; }
+.table-container { max-height: 400px; overflow-y: auto; }
+.form-control-lg-custom { width: 100%; }
+.table-hover tbody tr.semr { background-color: #f8d7da; }
+</style>
+</head>
+<body>
+<div class="container py-4">
+    <div class="container py-4 text-center">
+  <!-- Logotipo -->
+  <img src="logo.png" alt="Logotipo" class="mb-3" style="max-height: 80px;">  
+</div>
+<h1 class="mb-4 text-center">Dashboard de Candidatos - Vestibular 2026</h1>
+
+<!-- Formulário -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <form id="candidateForm" class="row g-3">
+      <div class="col-md-3">
+        <label for="name" class="form-label">Nome</label>
+        <input type="text" id="name" class="form-control form-control-lg-custom" placeholder="Nome do candidato" required>
+      </div>
+      <div class="col-md-2">
+        <label for="phone" class="form-label">Celular</label>
+        <input type="text" id="phone" class="form-control form-control-lg-custom" placeholder="11987654321" required>
+      </div>
+      <div class="col-md-2">
+        <label for="status" class="form-label">Situação</label>
+        <select id="status" class="form-select form-control-lg-custom" required>
+          <option value="Sem Resposta">Sem Resposta</option>
+          <option value="Contactado">Contactado</option>
+          <option value="Matriculado">Matriculado</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="vestibularDiscount" class="form-label">Desconto Vestibular (%)</label>
+        <input type="number" id="vestibularDiscount" class="form-control form-control-lg-custom" min="0" max="100" value="0">
+      </div>
+      <div class="col-md-3">
+        <label for="coordinatorDiscount" class="form-label">Desconto Coordenador (%)</label>
+        <input type="number" id="coordinatorDiscount" class="form-control form-control-lg-custom" min="0" max="100" value="0">
+      </div>
+
+      <div class="col-12">
+        <label for="defaultMessage" class="form-label">Mensagem WhatsApp</label>
+        <textarea id="defaultMessage" class="form-control form-control-lg-custom mb-2" rows="2">Olá, sua matrícula está em andamento.</textarea>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Adicionar Candidato</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Cards -->
+<div class="row mb-4 g-3 text-center">
+  <div class="col-md-2"><div class="card-counter bg-danger"><h5>Sem Resposta</h5><h3 id="countSemResposta">0</h3></div></div>
+  <div class="col-md-2"><div class="card-counter bg-warning"><h5>Contactado</h5><h3 id="countContactado">0</h3></div></div>
+  <div class="col-md-2"><div class="card-counter bg-success"><h5>Matriculado</h5><h3 id="countMatriculado">0</h3></div></div>
+  <div class="col-md-2"><div class="card-counter bg-primary"><h5>Total Candidatos</h5><h3 id="totalCandidatos">0</h3></div></div>
+  <div class="col-md-2"><div class="card-counter bg-info"><h5>Total Desconto Coord.</h5><h3 id="totalDescontoCoordenador">0%</h3></div></div>
+  <div class="col-md-2"><div class="card-counter bg-secondary"><h5>Desconto Restante</h5><h3 id="restanteDescontoCoordenador">100%</h3></div></div>
+</div>
+
+<!-- Filtros + export/import -->
+<div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
+  <input type="text" id="searchName" class="form-control flex-grow-1" placeholder="Buscar por nome">
+  <select id="filterStatus" class="form-select w-auto">
+    <option value="Todos">Todos</option>
+    <option value="Sem Resposta">Sem Resposta</option>
+    <option value="Contactado">Contactado</option>
+    <option value="Matriculado">Matriculado</option>
+  </select>
+  <button id="downloadJson" class="btn btn-success"><i class="bi bi-download"></i> Salvar Dados</button>
+  <button id="uploadJsonBtn" class="btn btn-warning"><i class="bi bi-upload"></i> Carregar Dados</button>
+  <input type="file" id="uploadJson" accept=".json" style="display:none;">
+</div>
+
+<!-- Tabela -->
+<div class="table-container mb-4">
+  <table class="table table-hover table-bordered bg-white">
+    <thead class="table-dark">
+      <tr>
+        <th>Nome</th>
+        <th>Celular</th>
+        <th>Situação</th>
+        <th>Vestibular (%)</th>
+        <th>Coordenador (%)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+let candidates = [];
+
+function updateTable() {
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML = "";
+  const searchText = document.getElementById("searchName").value.toLowerCase();
+  const filterStatus = document.getElementById("filterStatus").value;
+
+  let counts = {"Sem Resposta":0,"Contactado":0,"Matriculado":0};
+  let totalCoord = 0;
+
+  candidates.forEach((c,index)=>{
+    counts[c.status] = (counts[c.status] || 0) + 1;
+    totalCoord += parseFloat(c.coordinatorDiscount || 0);
+
+    if(searchText && !c.name.toLowerCase().includes(searchText)) return;
+    if(filterStatus !== "Todos" && c.status !== filterStatus) return;
+
+    const row = document.createElement("tr");
+    if(c.status==="Sem Resposta") row.classList.add("semr");
+    row.innerHTML = `
+      <td>${c.name}</td>
+      <td>${c.phone}</td>
+      <td>
+        <select class="form-select form-select-sm status-select" data-index="${index}">
+          <option value="Sem Resposta" ${c.status==='Sem Resposta'?'selected':''}>Sem Resposta</option>
+          <option value="Contactado" ${c.status==='Contactado'?'selected':''}>Contactado</option>
+          <option value="Matriculado" ${c.status==='Matriculado'?'selected':''}>Matriculado</option>
+        </select>
+      </td>
+      <td><input type="number" class="form-control form-control-sm vestibular-input" data-index="${index}" value="${c.vestibularDiscount||0}" min="0" max="100"></td>
+      <td><input type="number" class="form-control form-control-sm coordinator-input" data-index="${index}" value="${c.coordinatorDiscount||0}" min="0" max="100"></td>
+      <td class="text-center">
+        <button class="btn btn-success btn-sm send-btn" data-index="${index}" data-message="${encodeURIComponent(c.message)}" title="Enviar WhatsApp"><i class="bi bi-whatsapp"></i></button>
+        <button class="btn btn-danger btn-sm ms-1 delete-btn" data-index="${index}" title="Excluir"><i class="bi bi-trash"></i></button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  // Atualiza cards
+  document.getElementById("countSemResposta").textContent = counts["Sem Resposta"];
+  document.getElementById("countContactado").textContent = counts["Contactado"];
+  document.getElementById("countMatriculado").textContent = counts["Matriculado"];
+  document.getElementById("totalCandidatos").textContent = candidates.length;
+  document.getElementById("totalDescontoCoordenador").textContent = totalCoord + "%";
+  document.getElementById("restanteDescontoCoordenador").textContent = Math.max(0,100-totalCoord) + "%";
+
+  // Eventos WhatsApp
+  document.querySelectorAll(".send-btn").forEach(btn=>{
+    btn.onclick = e=>{
+      const idx = e.currentTarget.dataset.index;
+      const candidate = candidates[idx];
+      let phone = candidate.phone.replace(/\D/g,'');
+      if(!phone) return alert("Número inválido!");
+      const msg = e.currentTarget.dataset.message;
+      window.open(`https://wa.me/55${phone}?text=${msg}`,"_blank");
+    };
+  });
+
+  // Alterar status
+  document.querySelectorAll(".status-select").forEach(sel=>{
+    sel.onchange = e=>{
+      const idx = e.currentTarget.dataset.index;
+      candidates[idx].status = e.currentTarget.value;
+      updateTable();
+    };
+  });
+
+  // Alterar descontos
+  document.querySelectorAll(".vestibular-input").forEach(input=>{
+    input.onchange = e=>{
+      const idx = e.currentTarget.dataset.index;
+      candidates[idx].vestibularDiscount = parseFloat(e.currentTarget.value)||0;
+      updateTable();
+    };
+  });
+  document.querySelectorAll(".coordinator-input").forEach(input=>{
+    input.onchange = e=>{
+      const idx = e.currentTarget.dataset.index;
+      candidates[idx].coordinatorDiscount = parseFloat(e.currentTarget.value)||0;
+      updateTable();
+    };
+  });
+
+  // Excluir
+  document.querySelectorAll(".delete-btn").forEach(btn=>{
+    btn.onclick = e=>{
+      candidates.splice(e.currentTarget.dataset.index,1);
+      updateTable();
+    };
+  });
+}
+
+// Adicionar candidato
+document.getElementById("candidateForm").onsubmit = e=>{
+  e.preventDefault();
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const status = document.getElementById("status").value;
+  const message = document.getElementById("defaultMessage").value.trim();
+  const vestibularDiscount = parseFloat(document.getElementById("vestibularDiscount").value)||0;
+  const coordinatorDiscount = parseFloat(document.getElementById("coordinatorDiscount").value)||0;
+
+  if(name && phone){
+    candidates.push({name, phone, status, message, vestibularDiscount, coordinatorDiscount});
+    updateTable();
+    e.target.reset();
+  }
+};
+
+// Export/Import JSON
+document.getElementById("downloadJson").onclick = ()=>{
+  const blob = new Blob([JSON.stringify(candidates,null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "candidatos.json";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+document.getElementById("uploadJsonBtn").onclick = ()=> document.getElementById("uploadJson").click();
+document.getElementById("uploadJson").onchange = e=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = evt=>{
+      try{
+        candidates = JSON.parse(evt.target.result);
+        candidates.forEach(c=>{
+          if(!c.message) c.message="Olá, sua matrícula está em andamento.";
+          if(!c.vestibularDiscount) c.vestibularDiscount = 0;
+          if(!c.coordinatorDiscount) c.coordinatorDiscount = 0;
+        });
+        updateTable();
+      }catch{ alert("Arquivo JSON inválido!"); }
+    };
+    reader.readAsText(file);
+  }
+};
+
+// Filtros
+document.getElementById("searchName").oninput = updateTable;
+document.getElementById("filterStatus").onchange = updateTable;
+
+// Inicializa
+window.onload = ()=>{ updateTable(); };
+</script>
+</body>
+</html>
