@@ -160,8 +160,8 @@ function updateTable() {
       const candidate = candidates[idx];
       let phone = candidate.phone.replace(/\D/g,'');
       if(!phone) return alert("Número inválido!");
-      const msg = e.currentTarget.dataset.message;
-      window.open(`https://wa.me/55${phone}?text=${msg}`,"_blank");
+     const msg = encodeURIComponent(candidate.message);
+      window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${msg}`,"_blank");
     };
   });
 
