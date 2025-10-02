@@ -53,8 +53,7 @@ body { background-color: #f4f6f9; }
       </div>
 
       <div class="col-12">
-        <label for="defaultMessage" class="form-label">Mensagem WhatsApp</label>
-        <textarea id="defaultMessage" class="form-control form-control-lg-custom mb-2" rows="2">Olá, sua matrícula está em andamento.</textarea>
+       
         <div class="d-grid">
           <button type="submit" class="btn btn-primary"><i class="bi bi-person-plus"></i> Adicionar Candidato</button>
         </div>
@@ -138,7 +137,7 @@ function updateTable() {
       <td><input type="number" class="form-control form-control-sm vestibular-input" data-index="${index}" value="${c.vestibularDiscount||0}" min="0" max="100"></td>
       <td><input type="number" class="form-control form-control-sm coordinator-input" data-index="${index}" value="${c.coordinatorDiscount||0}" min="0" max="100"></td>
       <td class="text-center">
-        <button class="btn btn-success btn-sm send-btn" data-index="${index}" data-message="${encodeURIComponent(c.message)}" title="Enviar WhatsApp"><i class="bi bi-whatsapp"></i></button>
+        <button class="btn btn-success btn-sm send-btn" data-index="${index}"  title="Enviar WhatsApp"><i class="bi bi-whatsapp"></i></button>
         <button class="btn btn-danger btn-sm ms-1 delete-btn" data-index="${index}" title="Excluir"><i class="bi bi-trash"></i></button>
       </td>
     `;
@@ -154,17 +153,19 @@ function updateTable() {
   document.getElementById("restanteDescontoCoordenador").textContent = Math.max(0,100-totalCoord) + "%";
 
   // Eventos WhatsApp
-  document.querySelectorAll(".send-btn").forEach(btn=>{
-    btn.onclick = e=>{
-      const idx = e.currentTarget.dataset.index;
-      const candidate = candidates[idx];
-      let phone = candidate.phone.replace(/\D/g,'');
-      if(!phone) return alert("Número inválido!");
-     const msg = encodeURIComponent(candidate.message);
-      window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${msg}`,"_blank");
-    };
-  });
-
+ document.querySelectorAll(".send-btn").forEach(btn=>{
+  btn.onclick = e=>{
+    const idx = e.currentTarget.dataset.index;
+    const candidate = candidates[idx];
+    let phone = candidate.phone.replace(/\D/g,'');
+    if(!phone) {
+      alert("Número inválido!");
+      return;
+    }
+   
+    window.open(`https://api.whatsapp.com/send?phone=55${phone}`,"_blank");
+  };
+});
   // Alterar status
   document.querySelectorAll(".status-select").forEach(sel=>{
     sel.onchange = e=>{
@@ -204,13 +205,12 @@ document.getElementById("candidateForm").onsubmit = e=>{
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
   const phone = document.getElementById("phone").value.trim();
-  const status = document.getElementById("status").value;
-  const message = document.getElementById("defaultMessage").value.trim();
+  const status = document.getElementById("status").value;  
   const vestibularDiscount = parseFloat(document.getElementById("vestibularDiscount").value)||0;
   const coordinatorDiscount = parseFloat(document.getElementById("coordinatorDiscount").value)||0;
 
   if(name && phone){
-    candidates.push({name, phone, status, message, vestibularDiscount, coordinatorDiscount});
+    candidates.push({name, phone, status, vestibularDiscount, coordinatorDiscount});
     updateTable();
     e.target.reset();
   }
@@ -235,7 +235,7 @@ document.getElementById("uploadJson").onchange = e=>{
       try{
         candidates = JSON.parse(evt.target.result);
         candidates.forEach(c=>{
-          if(!c.message) c.message="Olá, sua matrícula está em andamento.";
+         
           if(!c.vestibularDiscount) c.vestibularDiscount = 0;
           if(!c.coordinatorDiscount) c.coordinatorDiscount = 0;
         });
