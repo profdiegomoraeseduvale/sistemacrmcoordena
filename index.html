@@ -88,6 +88,11 @@ body { background-color: #f4f6f9; }
 
 <!-- Tabela -->
 <div class="table-container mb-4">
+  <div class="mb-3 d-flex gap-2 align-items-center">
+    <span class="text-muted">Ordenar por nome:</span>
+    <button id="sortAscending" class="btn btn-outline-primary btn-sm"><i class="bi bi-sort-alpha-down"></i> A-Z</button>
+    <button id="sortDescending" class="btn btn-outline-primary btn-sm"><i class="bi bi-sort-alpha-up-alt"></i> Z-A</button>
+  </div>
   <table class="table table-hover table-bordered bg-white">
     <thead class="table-dark">
       <tr>
@@ -105,6 +110,7 @@ body { background-color: #f4f6f9; }
 
 <script>
 let candidates = [];
+let sortOrder = null; // null = original, 'asc' = crescente, 'desc' = decrescente
 
 function updateTable() {
   const tbody = document.getElementById("tableBody");
@@ -115,12 +121,27 @@ function updateTable() {
   let counts = {"Sem Resposta":0,"Contactado":0,"Matriculado":0};
   let totalCoord = 0;
 
-  candidates.forEach((c,index)=>{
+  // Criar cópia dos candidatos com índices originais
+  let filteredCandidates = candidates.map((c, index) => ({...c, originalIndex: index}));
+  
+  // Aplicar filtros
+  filteredCandidates = filteredCandidates.filter(c => {
+    if(searchText && !c.name.toLowerCase().includes(searchText)) return false;
+    if(filterStatus !== "Todos" && c.status !== filterStatus) return false;
+    return true;
+  });
+  
+  // Aplicar ordenação
+  if(sortOrder === 'asc') {
+    filteredCandidates.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  } else if(sortOrder === 'desc') {
+    filteredCandidates.sort((a, b) => b.name.localeCompare(a.name, 'pt-BR'));
+  }
+  
+  // Renderizar tabela
+  filteredCandidates.forEach((c) => {
     counts[c.status] = (counts[c.status] || 0) + 1;
     totalCoord += parseFloat(c.coordinatorDiscount || 0);
-
-    if(searchText && !c.name.toLowerCase().includes(searchText)) return;
-    if(filterStatus !== "Todos" && c.status !== filterStatus) return;
 
     const row = document.createElement("tr");
     if(c.status==="Sem Resposta") row.classList.add("semr");
@@ -128,17 +149,17 @@ function updateTable() {
       <td>${c.name}</td>
       <td>${c.phone}</td>
       <td>
-        <select class="form-select form-select-sm status-select" data-index="${index}">
+        <select class="form-select form-select-sm status-select" data-index="${c.originalIndex}">
           <option value="Sem Resposta" ${c.status==='Sem Resposta'?'selected':''}>Sem Resposta</option>
           <option value="Contactado" ${c.status==='Contactado'?'selected':''}>Contactado</option>
           <option value="Matriculado" ${c.status==='Matriculado'?'selected':''}>Matriculado</option>
         </select>
       </td>
-      <td><input type="number" class="form-control form-control-sm vestibular-input" data-index="${index}" value="${c.vestibularDiscount||0}" min="0" max="100"></td>
-      <td><input type="number" class="form-control form-control-sm coordinator-input" data-index="${index}" value="${c.coordinatorDiscount||0}" min="0" max="100"></td>
+      <td><input type="number" class="form-control form-control-sm vestibular-input" data-index="${c.originalIndex}" value="${c.vestibularDiscount||0}" min="0" max="100"></td>
+      <td><input type="number" class="form-control form-control-sm coordinator-input" data-index="${c.originalIndex}" value="${c.coordinatorDiscount||0}" min="0" max="100"></td>
       <td class="text-center">
-        <button class="btn btn-success btn-sm send-btn" data-index="${index}"  title="Enviar WhatsApp"><i class="bi bi-whatsapp"></i></button>
-        <button class="btn btn-danger btn-sm ms-1 delete-btn" data-index="${index}" title="Excluir"><i class="bi bi-trash"></i></button>
+        <button class="btn btn-success btn-sm send-btn" data-index="${c.originalIndex}"  title="Enviar WhatsApp"><i class="bi bi-whatsapp"></i></button>
+        <button class="btn btn-danger btn-sm ms-1 delete-btn" data-index="${c.originalIndex}" title="Excluir"><i class="bi bi-trash"></i></button>
       </td>
     `;
     tbody.appendChild(row);
@@ -249,6 +270,16 @@ document.getElementById("uploadJson").onchange = e=>{
 // Filtros
 document.getElementById("searchName").oninput = updateTable;
 document.getElementById("filterStatus").onchange = updateTable;
+
+// Ordenação
+document.getElementById("sortAscending").onclick = ()=>{
+  sortOrder = sortOrder === 'asc' ? null : 'asc';
+  updateTable();
+};
+document.getElementById("sortDescending").onclick = ()=>{
+  sortOrder = sortOrder === 'desc' ? null : 'desc';
+  updateTable();
+};
 
 // Inicializa
 window.onload = ()=>{ updateTable(); };
